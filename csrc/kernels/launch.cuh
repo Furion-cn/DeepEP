@@ -20,6 +20,7 @@
     switch (num_ranks) { \
         case 2: case_macro(2); \
         case 4: case_macro(4); \
+        case 6: case_macro(6); \
         case 8: case_macro(8); \
         default: EP_HOST_ASSERT(false and "Unsupported ranks"); \
     } while (false)
@@ -29,7 +30,10 @@
         case 2: case_macro(2); \
         case 3: case_macro(3); \
         case 4: case_macro(4); \
+        case 6: case_macro(6); \
         case 8: case_macro(8); \
+        case 10: case_macro(10); \
+        case 12: case_macro(12); \
         case 16: case_macro(16); \
         case 18: case_macro(18); \
         case 20: case_macro(20); \
@@ -40,6 +44,7 @@
     switch (num_ranks) { \
         case 2: case_macro(dtype, 2); \
         case 4: case_macro(dtype, 4); \
+        case 6: case_macro(dtype, 6); \
         case 8: case_macro(dtype, 8); \
         default: EP_HOST_ASSERT(false && "Unsupported ranks"); \
     } while (false)
@@ -53,6 +58,7 @@
 
 #define SWITCH_HIDDEN(case_macro) \
     switch (hidden) { \
+        case 2048: case_macro(2048); \
         case 2560: case_macro(2560); \
         case 4096: case_macro(4096); \
         case 5120: case_macro(5120); \

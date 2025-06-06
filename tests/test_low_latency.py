@@ -2,6 +2,7 @@ import random
 import torch
 import torch.distributed as dist
 from functools import partial
+import os
 
 import deep_ep
 from utils import init_dist, bench, bench_kineto, calc_diff, hash_tensor, per_token_cast_back
@@ -147,8 +148,10 @@ def test_main(num_tokens: int, hidden: int, num_experts: int, num_topk: int,
 
 # noinspection PyUnboundLocalVariable
 def test_loop(local_rank: int, num_local_ranks: int):
+    num_tokens = int(os.getenv('DEEPEP_TEST_LOW_LATENCY_NUM_TOKENS', 128))
+    num_experts = int(os.getenv('DEEPEP_TEST_LOW_LATENCY_NUM_EXPERTS', 288))
     rank, num_ranks, group = init_dist(local_rank, num_local_ranks)
-    num_tokens, hidden, num_topk, num_experts = 128, 7168, 8, 288
+    hidden, num_topk  =  7168, 8
 
     num_rdma_bytes = deep_ep.Buffer.get_low_latency_rdma_size_hint(num_tokens, hidden, num_ranks, num_experts)
     if local_rank == 0:

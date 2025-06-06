@@ -11,9 +11,22 @@ from utils import init_dist, bench, calc_diff, create_grouped_scores, inplace_un
 import test_low_latency
 
 
-def test_main(num_sms: int, local_rank: int, num_local_ranks: int, num_ranks: int, num_nodes: int, rank: int, buffer: deep_ep.Buffer, group: dist.ProcessGroup):
+def test_main(
+        num_sms: int,
+        local_rank: int,
+        num_local_ranks: int,
+        num_ranks: int,
+        num_nodes: int,
+        rank: int,
+        num_tokens: int,
+        num_experts: int,
+        buffer: deep_ep.Buffer,
+        rdma_buffer_size: int,
+        nvl_buffer_size: int,
+        group: dist.ProcessGroup
+    ):
     # Settings
-    num_tokens, hidden, num_topk_groups, num_topk, num_experts = 4096, 7168, min(num_nodes, 4), 8, (256 // num_ranks) * num_ranks
+    hidden, num_topk_groups, num_topk = 7168, min(num_nodes, 4), 8
     assert num_experts % num_ranks == 0 and num_local_ranks == 8
     if local_rank == 0:
         print(f'[config] num_tokens={num_tokens}, hidden={hidden}, num_topk_groups={num_topk_groups}, num_topk={num_topk}', flush=True)
@@ -81,7 +94,6 @@ def test_main(num_sms: int, local_rank: int, num_local_ranks: int, num_ranks: in
     time.sleep(1)
 
     # Config
-    rdma_buffer_size, nvl_buffer_size = 128, (720 if num_ranks in (144, 160) else 512)
     config = deep_ep.Config(num_sms, 8, nvl_buffer_size, 16, rdma_buffer_size)
 
     # Test dispatch
@@ -217,13 +229,17 @@ def test_main(num_sms: int, local_rank: int, num_local_ranks: int, num_ranks: in
 
 # noinspection PyUnboundLocalVariable
 def test_loop(local_rank: int, num_local_ranks: int):
+    num_tokens = int(os.getenv('DEEPEP_TEST_INTERNODE_NUM_TOKENS', 4096))
+    num_experts = int(os.getenv('DEEPEP_TEST_INTERNODE_NUM_EXPERTS', 256))
+    num_sms = int(os.getenv('DEEPEP_TEST_INTERNODE_NUM_SMS', 24))
     num_nodes = int(os.getenv('WORLD_SIZE', 1))
+    rdma_buffer_size = int(os.getenv('DEEPEP_TEST_INTERNODE_MAX_RDMA_CHUNKED_RECV_TOKENS', 128))
+    nvl_buffer_size = int(os.getenv('DEEPEP_TEST_INTERNODE_MAX_NVL_CHUNKED_RECV_TOKENS', (720 if num_ranks in (144, 160) else 512)))
     rank, num_ranks, group = init_dist(local_rank, num_local_ranks)
     test_ll_compatibility = True
     if test_ll_compatibility:
-        ll_num_tokens, ll_hidden, ll_num_experts, ll_num_topk = 16, 5120, 256, 9
+        ll_num_tokens, ll_hidden, ll_num_experts, ll_num_topk = 16, 5120, num_experts, 9
 
-    num_sms = 24
     num_qps_per_rank = max(num_sms // 2, ll_num_experts // num_ranks if test_ll_compatibility else 0)
 
     buffer = deep_ep.Buffer(group, int(1e9), int(1e9), low_latency_mode=test_ll_compatibility,
@@ -232,7 +248,7 @@ def test_loop(local_rank: int, num_local_ranks: int):
     torch.manual_seed(rank)
 
     for i in (num_sms, ):
-        test_main(i, local_rank, num_local_ranks, num_ranks, num_nodes, rank, buffer, group)
+        test_main(i, local_rank, num_local_ranks, num_ranks, num_nodes, rank, num_tokens, num_experts, buffer, rdma_buffer_size, nvl_buffer_size, group)
         if local_rank == 0:
             print('', flush=True)
 
